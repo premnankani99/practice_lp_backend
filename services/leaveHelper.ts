@@ -1,5 +1,5 @@
 import prisma from '../prismaClient';
-import { sendEmail, MAIN_ADMIN_EMAILS } from '../utils/emailService';
+import { sendEmail, MAIN_ADMIN_EMAILS, getAdminAndHrEmails } from '../utils/emailService';
 import { 
     leaveAppliedAdminTemplate, 
     leaveAppliedEmployeeTemplate, 
