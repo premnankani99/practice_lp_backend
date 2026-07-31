@@ -102,7 +102,7 @@ export const sendLeaveEmails = async (profile: any, totalDays: number, start: Da
     }
     
     if (targetEmails.length === 0) {
-        targetEmails = MAIN_ADMIN_EMAILS;
+        targetEmails = await getAdminAndHrEmails();
     }
 
     if (targetEmails.length > 0) {
@@ -182,7 +182,7 @@ export const sendWithdrawalEmail = async (employee: any, start: Date, end: Date,
     }
     
     if (targetEmails.length === 0) {
-        targetEmails = MAIN_ADMIN_EMAILS;
+        targetEmails = await getAdminAndHrEmails();
     }
 
     if (targetEmails.length > 0 && employee) {
