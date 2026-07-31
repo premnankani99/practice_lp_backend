@@ -103,8 +103,21 @@ export const actionCompOffService = async (id: number, admin_id: number, status:
 
     try {
         if (request.employee && request.employee.email) {
+            // First fetch the profile again to get the managers (since they weren't included in the above query)
+            const profile = await prisma.profiles.findUnique({
+                where: { id: request.employee.id },
+                include: { managers: { select: { email: true } } }
+            });
+
+            let managerEmails: string[] = [];
+            if (profile?.managers && profile.managers.length > 0) {
+                managerEmails = profile.managers.map((m: any) => m.email).filter(Boolean);
+            }
+
             const adminAndHrEmails = await getAdminAndHrEmails();
-            const ccEmails = adminAndHrEmails.filter(email => email !== request.employee.email);
+            const ccEmails = [...managerEmails, ...adminAndHrEmails].filter(
+                (email, index, self) => self.indexOf(email) === index && email !== request.employee.email
+            );
             
             sendEmail({
                 to: request.employee.email,

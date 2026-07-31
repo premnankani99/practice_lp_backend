@@ -101,13 +101,20 @@ export const sendLeaveEmails = async (profile: any, totalDays: number, start: Da
         targetEmails = profile.managers.map((m: any) => m.email).filter(Boolean);
     }
     
+    const adminAndHrEmails = await getAdminAndHrEmails();
+
     if (targetEmails.length === 0) {
-        targetEmails = await getAdminAndHrEmails();
+        targetEmails = adminAndHrEmails;
     }
 
     if (targetEmails.length > 0) {
+        const ccEmails = adminAndHrEmails.filter(email => !targetEmails.includes(email));
+        
         sendEmail({
-            to: targetEmails, subject: 'New Leave Request', text: `Employee ${profile.full_name} applied for ${durationText} of leave.`,
+            to: targetEmails,
+            cc: ccEmails,
+            subject: 'New Leave Request',
+            text: `Employee ${profile.full_name} applied for ${durationText} of leave.`,
             html: leaveAppliedAdminTemplate(profile.full_name, durationText, start.toDateString(), end.toDateString(), reason)
         }).catch(err => console.error("Failed to send email to admin/managers:", err));
     }
@@ -115,8 +122,21 @@ export const sendLeaveEmails = async (profile: any, totalDays: number, start: Da
 
 export const sendStatusEmail = async (leave: any, status: string, adminNote: string): Promise<void> => {
     if (leave.employee?.email) {
+        let managerEmails: string[] = [];
+        if (leave.employee.managers && leave.employee.managers.length > 0) {
+            managerEmails = leave.employee.managers.map((m: any) => m.email).filter(Boolean);
+        }
+        
+        const adminAndHrEmails = await getAdminAndHrEmails();
+        const ccEmails = [...managerEmails, ...adminAndHrEmails].filter(
+            (email, index, self) => self.indexOf(email) === index && email !== leave.employee.email
+        );
+
         sendEmail({
-            to: leave.employee.email, subject: `Leave Request ${status.toUpperCase()}`, text: `Your leave has been ${status}.`,
+            to: leave.employee.email,
+            cc: ccEmails,
+            subject: `Leave Request ${status.toUpperCase()}`,
+            text: `Your leave has been ${status}.`,
             html: leaveStatusUpdateTemplate(leave.employee.full_name, leave.start_date.toDateString(), leave.end_date.toDateString(), status, adminNote || '')
         }).catch(err => console.error("Failed to send status email:", err));
     }
@@ -175,20 +195,35 @@ export const handlePendingOrApprovedWithdrawal = (leave: any, datesToWithdraw: a
     return { message, updateData };
 };
 
-export const sendWithdrawalEmail = async (employee: any, start: Date, end: Date, message: string): Promise<void> => {
+export const sendWithdrawalEmail = async (employee: any, start: Date, end: Date, reason: string): Promise<void> => {
     let targetEmails: string[] = [];
-    if (employee && employee.managers && employee.managers.length > 0) {
+    if (employee.managers && employee.managers.length > 0) {
         targetEmails = employee.managers.map((m: any) => m.email).filter(Boolean);
     }
     
+    const adminAndHrEmails = await getAdminAndHrEmails();
+
     if (targetEmails.length === 0) {
-        targetEmails = await getAdminAndHrEmails();
+        targetEmails = adminAndHrEmails;
     }
 
-    if (targetEmails.length > 0 && employee) {
+    if (targetEmails.length > 0) {
+        const ccEmails = adminAndHrEmails.filter(email => !targetEmails.includes(email));
+
         sendEmail({
-            to: targetEmails, subject: 'Leave Withdrawal Request', text: `Withdrawal request from ${employee.full_name}`,
-            html: leaveWithdrawalAdminTemplate(employee.full_name, start.toDateString(), end.toDateString(), message)
-        }).catch(err => console.error("Failed to send withdrawal email:", err));
+            to: targetEmails,
+            cc: ccEmails,
+            subject: 'Leave Request Withdrawn/Cancelled',
+            text: `Employee ${employee.full_name} has withdrawn/cancelled their leave from ${start.toDateString()} to ${end.toDateString()}. Reason: ${reason}`,
+            html: `
+                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: auto;">
+                    <h2 style="color: #6a1b9a;">Leave Request Cancelled</h2>
+                    <p><strong>Employee:</strong> ${employee.full_name}</p>
+                    <p><strong>Dates:</strong> ${start.toDateString()} - ${end.toDateString()}</p>
+                    <p><strong>Status:</strong> Cancelled/Withdrawn</p>
+                    <p><strong>Reason:</strong> ${reason}</p>
+                </div>
+            `
+        }).catch(err => console.error("Failed to send withdrawal email to admin/managers:", err));
     }
 };
