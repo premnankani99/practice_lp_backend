@@ -100,7 +100,7 @@ export const processLeaveActionService = async (id: number, status: string, admi
         });
     }
 
-    await sendStatusEmail(updatedLeave, status, adminNote);
+    sendStatusEmail(updatedLeave, status, adminNote).catch(e => console.error('Failed to send status email', e));
     return updatedLeave;
 };
 
@@ -132,7 +132,7 @@ export const withdrawLeaveService = async (id: number, datesToWithdraw: any) => 
     }
     
     if (leave.status === 'approved') {
-        await sendWithdrawalEmail(updatedLeave.employee, updatedLeave.start_date, updatedLeave.end_date, message);
+        sendWithdrawalEmail(updatedLeave.employee, updatedLeave.start_date, updatedLeave.end_date, message).catch(e => console.error(e));
     }
     return { message, updatedLeave };
 };
