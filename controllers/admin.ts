@@ -24,7 +24,7 @@ export const getPendingVerifications = async (_req: Request, res: Response): Pro
         });
         res.status(HTTP_STATUS.OK).json(pending);
     } catch (_error) {
-        logger.error("[Backend] Error caught in admin.ts");
+        logger.error("[Backend] Error caught in admin.ts", _error);
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
     }
 };
