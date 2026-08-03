@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
         pass: process.env.SMTP_PASS,
     },
     family: 4
-});
+} as any);
 
 export interface SendEmailOptions {
     to: string | string[];
