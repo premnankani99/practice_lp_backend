@@ -41,7 +41,9 @@ export const applyNewLeaveService = async (employee_id: number, leave_type: stri
     });
 
     if (!isApproved) {
-        await sendLeaveEmails(profile, total_days, start_date, end_date, reason);
+        if (profile.email) {
+            sendLeaveEmails(profile, total_days, start_date, end_date, reason).catch(e => console.error("Failed to send leave apply email", e));
+        }
     }
     return newLeave;
 };
