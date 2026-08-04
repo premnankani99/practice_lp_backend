@@ -19,6 +19,36 @@ export const applyNewLeaveService = async (employee_id: number, leave_type: stri
     });
     if (!profile) throw new Error("EMPLOYEE_NOT_FOUND");
 
+    // ==========================================
+    // 🤖 AI TEAM AVAILABILITY PREDICTOR (SCARCITY MANAGER)
+    // ==========================================
+    if (profile.department_id && !isApproved) {
+        const totalDeptEmployees = await prisma.profiles.count({
+            where: { department_id: profile.department_id, is_deleted: false }
+        });
+
+        // Only enforce scarcity rules if the department has more than 1 active person
+        if (totalDeptEmployees > 1) {
+            const overlappingLeaves = await prisma.leave_requests.findMany({
+                where: {
+                    status: 'approved',
+                    employee: { department_id: profile.department_id, is_deleted: false },
+                    start_date: { lte: end_date },
+                    end_date: { gte: start_date }
+                },
+                select: { employee_id: true }
+            });
+
+            const uniqueEmployeesOnLeave = new Set(overlappingLeaves.map((l: { employee_id: number }) => l.employee_id)).size;
+            const absenceRatio = (uniqueEmployeesOnLeave + 1) / totalDeptEmployees;
+
+            if (absenceRatio > 0.50) {
+                throw new Error("AI Predictor Block: Department active workforce will fall below the critical 50% threshold. Request denied to prevent operational scarcity.");
+            }
+        }
+    }
+    // ==========================================
+
     const joinedDate = profile.date_of_joining ? new Date(profile.date_of_joining) : new Date(profile.created_at);
     const inProbation = isInProbation(joinedDate);
     
@@ -58,7 +88,7 @@ export const fetchEmployeeLeavesService = async (employee_id: number) => {
 export const fetchAllLeavesService = async () => {
     return await prisma.leave_requests.findMany({
         where: { employee: { is_deleted: false } },
-        include: { employee: { include: { managers: { select: { id: true } } } } },
+        include: { employee: { include: { managers: { select: { id: true } }, department: { select: { id: true, name: true } } } } },
         orderBy: { created_at: 'desc' }
     });
 };
