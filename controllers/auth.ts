@@ -8,6 +8,7 @@ import { getOtpEmailTemplate, getResetPasswordEmailTemplate } from '../utils/ema
 import { MESSAGES } from '../constants/strings';
 import { NUMBERS } from '../constants/numbers';
 import { HTTP_STATUS } from '../constants/httpCodes';
+import { syncEmployeeLeaveBalance } from '../services/leaveAccrualService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_leave_portal';
 
@@ -322,6 +323,10 @@ export const resetPassword = async (_req: Request, res: Response): Promise<void>
 export const me = async (req: Request, res: Response): Promise<void> => {
     try {
         const userReq = req as any;
+        
+        // Sync real-time leave balance before returning the profile
+        await syncEmployeeLeaveBalance(userReq.user.id);
+
         const user = await prisma.profiles.findUnique({
             where: { id: userReq.user.id }
         });

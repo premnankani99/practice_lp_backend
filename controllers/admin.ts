@@ -5,6 +5,7 @@ import { getAllLeaves } from './leaves';
 import prisma from '../prismaClient';
 import { MESSAGES } from '../constants/strings';
 import { HTTP_STATUS } from '../constants/httpCodes';
+import { syncEmployeeLeaveBalance } from '../services/leaveAccrualService';
 
 /**
  * Fetches all pending employee verification requests.
@@ -155,7 +156,14 @@ export const updateEmployee = async (req: Request, res: Response): Promise<void>
             data: updateData
         });
 
-        res.status(HTTP_STATUS.OK).json({ message: MESSAGES.EMPLOYEE_UPDATED, profile: updatedProfile });
+        if (date_of_joining) {
+            await syncEmployeeLeaveBalance(Number(id));
+        }
+
+        // Fetch again to get latest synced balance if updated
+        const finalProfile = await prisma.profiles.findUnique({ where: { id: Number(id) }});
+
+        res.status(HTTP_STATUS.OK).json({ message: MESSAGES.EMPLOYEE_UPDATED, profile: finalProfile || updatedProfile });
     } catch (_error) {
         logger.error("[Backend] Error caught in admin.ts");
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.UPDATE_ERROR });
@@ -256,8 +264,15 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
 
 export const getCompOffHistory = async (req: Request, res: Response): Promise<void> => {
   try {
+    const { employeeId } = req.query;
+    
+    const whereClause: any = { employee: { is_deleted: false } };
+    if (employeeId) {
+      whereClause.employeeId = Number(employeeId);
+    }
+
     const history = await prisma.compOffGrant.findMany({
-      where: { employee: { is_deleted: false } },
+      where: whereClause,
       include: {
         employee: {
           select: {
