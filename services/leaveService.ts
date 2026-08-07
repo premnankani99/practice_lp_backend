@@ -67,12 +67,45 @@ export const applyNewLeaveService = async (employee_id: number, leave_type: stri
     }
 
     const newLeave = await prisma.leave_requests.create({
-        data: { employee_id, leave_type: finalLeaveType, start_date, end_date, total_days, reason, status: isApproved ? 'approved' : 'pending' }
+        data: { 
+            employee_id, 
+            leave_type: finalLeaveType, 
+            start_date, 
+            end_date, 
+            total_days, 
+            reason, 
+            status: isApproved ? 'approved' : 'pending',
+            ...(isApproved ? { approved_at: new Date(), admin_note: 'Applied by Admin on behalf of employee' } : {})
+        }
     });
 
     if (!isApproved) {
         if (profile.email) {
             sendLeaveEmails(profile, total_days, start_date, end_date, reason).catch(e => console.error("Failed to send leave apply email", e));
+        }
+    } else {
+        if (profile.email) {
+            const { sendEmail } = require('../utils/emailService');
+            const durationText = total_days === 1 ? '1 day' : `${total_days} days`;
+            sendEmail({
+                to: profile.email,
+                subject: 'Leave Applied on Your Behalf',
+                text: `An Admin has applied for a leave of ${durationText} starting ${start_date.toDateString()} on your behalf.`,
+                html: `
+                  <div style="font-family: sans-serif; padding: 20px;">
+                    <h2 style="color: #7e57c2;">Leave Applied By Admin</h2>
+                    <p>Hi ${profile.full_name},</p>
+                    <p>An Admin has applied for a leave on your behalf.</p>
+                    <ul>
+                      <li><strong>Duration:</strong> ${durationText}</li>
+                      <li><strong>From:</strong> ${start_date.toDateString()}</li>
+                      <li><strong>To:</strong> ${end_date.toDateString()}</li>
+                      <li><strong>Reason:</strong> ${reason}</li>
+                    </ul>
+                    <p>Please check your portal for more details.</p>
+                  </div>
+                `
+            }).catch((e: any) => console.error("Failed to send admin applied leave email", e));
         }
     }
     return newLeave;
