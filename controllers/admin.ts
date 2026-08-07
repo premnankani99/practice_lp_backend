@@ -52,8 +52,8 @@ export const getVerifiedEmployees = async (_req: Request, res: Response): Promis
             orderBy: { full_name: 'asc' }
         });
         res.status(HTTP_STATUS.OK).json(verified);
-    } catch (_error) {
-        logger.error("[Backend] Error caught in admin.ts");
+    } catch (error) {
+        logger.error("[Backend] Error caught in admin.ts:", error);
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
     }
 };
@@ -72,8 +72,8 @@ export const getManagers = async (_req: Request, res: Response): Promise<void> =
             orderBy: { full_name: 'asc' }
         });
         res.status(HTTP_STATUS.OK).json(managers);
-    } catch (_error) {
-        logger.error("[Backend] Error caught in admin.ts");
+    } catch (error) {
+        logger.error("[Backend] Error caught in admin.ts:", error);
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
     }
 };
@@ -98,8 +98,8 @@ export const updateVerificationStatus = async (req: Request, res: Response): Pro
         });
 
         res.status(HTTP_STATUS.OK).json({ message: MESSAGES.VERIFICATION_UPDATED, profile: updatedProfile });
-    } catch (_error) {
-        logger.error("[Backend] Error caught in admin.ts");
+    } catch (error) {
+        logger.error("[Backend] Error caught in admin.ts:", error);
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.UPDATE_ERROR });
     }
 };
@@ -120,8 +120,8 @@ export const deleteEmployee = async (req: Request, res: Response): Promise<void>
         });
 
         res.status(HTTP_STATUS.OK).json({ message: MESSAGES.EMPLOYEE_DELETED });
-    } catch (_error) {
-        logger.error("[Backend] Error caught in admin.ts");
+    } catch (error) {
+        logger.error("[Backend] Error caught in admin.ts:", error);
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.DELETE_ERROR });
     }
 };
@@ -164,8 +164,8 @@ export const updateEmployee = async (req: Request, res: Response): Promise<void>
         const finalProfile = await prisma.profiles.findUnique({ where: { id: Number(id) }});
 
         res.status(HTTP_STATUS.OK).json({ message: MESSAGES.EMPLOYEE_UPDATED, profile: finalProfile || updatedProfile });
-    } catch (_error) {
-        logger.error("[Backend] Error caught in admin.ts");
+    } catch (error) {
+        logger.error("[Backend] Error caught in admin.ts:", error);
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.UPDATE_ERROR });
     }
 };
@@ -256,7 +256,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       newBalance: finalProfile.available_leaves
     });
   } catch (error) {
-        logger.error("[Backend] Error caught in admin.ts");
+    logger.error("[Backend] Error caught in admin.ts:", error);
     console.error("Error granting comp off:", error);
     res.status(500).json({ error: "Failed to grant comp off" });
   }
@@ -288,7 +288,7 @@ export const getCompOffHistory = async (req: Request, res: Response): Promise<vo
 
     res.json(history);
   } catch (error) {
-        logger.error("[Backend] Error caught in admin.ts");
+    logger.error("[Backend] Error caught in admin.ts:", error);
     console.error("Error fetching comp off history:", error);
     res.status(500).json({ error: "Failed to fetch history" });
   }

@@ -10,6 +10,15 @@ import { initCronJobs } from './cron/leaveAccrual';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Catch uncaught errors gracefully without crashing the server
+process.on('uncaughtException', (err) => {
+    console.error('[CRITICAL] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 app.use(cors());
 app.use(express.json());
 
@@ -48,10 +57,26 @@ app.get('/api/test-email', async (req: Request, res: Response) => {
     }
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/leaves', leaveRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/holidays', holidaysRoutes);
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/leaves', '/leaves'], leaveRoutes);
+app.use(['/api/admin', '/admin'], adminRoutes);
+app.use(['/api/holidays', '/holidays'], holidaysRoutes);
+
+// 404 Handler for Unmatched Routes
+app.use((req: Request, res: Response) => {
+    res.status(HTTP_STATUS.NOT_FOUND).json({ 
+        error: "Route not found", 
+        path: req.originalUrl 
+    });
+});
+
+// Global Error Handler
+app.use((err: any, _req: Request, res: Response, _next: any) => {
+    console.error("[Unhandled Error]:", err);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ 
+        error: err.message || "Internal Server Error" 
+    });
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

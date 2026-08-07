@@ -99,12 +99,12 @@ export const register = async (_req: Request, res: Response): Promise<void> => {
 
         const { newUser, otpCode } = await createUserWithOtp({ full_name, email, password });
 
-        await sendEmail({
+        sendEmail({
             to: email,
             subject: 'Verify Your Email - Leave Portal',
             text: `Your OTP is ${otpCode}`,
             html: getOtpEmailTemplate(full_name, otpCode)
-        });
+        }).catch(err => console.error("[Auth] Register email send error:", err));
 
         res.status(HTTP_STATUS.CREATED).json({ 
             message: MESSAGES.REGISTRATION_SUCCESS, 
@@ -181,12 +181,12 @@ const handleUnverifiedLogin = async (user: any): Promise<void> => {
     console.log(`🔐 OTP for ${user.email} is: ${otpCode}`);
     console.log(`=========================================\n`);
 
-    await sendEmail({
+    sendEmail({
         to: user.email,
         subject: 'Verify Your Email - Leave Portal',
         text: `Your OTP is ${otpCode}`,
         html: getOtpEmailTemplate(user.full_name, otpCode)
-    });
+    }).catch(err => console.error("[Auth] Unverified login email send error:", err));
 };
 
 /**

@@ -102,4 +102,6 @@ model CompOffGrant {
   workedDates  Json?
   status       String   @default("approved") // "pending", "approved", "rejected"
   adminNote    String?  @db.Text
+
+  @@map("compoffgrant")
 }
