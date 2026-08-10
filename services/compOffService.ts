@@ -10,6 +10,10 @@ export const requestCompOffService = async (employee_id: number, total_days: num
         throw new Error("Invalid Employee ID");
     }
 
+    if (new Set(workedDates).size !== workedDates.length) {
+        throw new Error("Duplicate dates are not allowed in a single request.");
+    }
+
     const existingCompOffs = await prisma.compOffGrant.findMany({
         where: {
             employeeId,
@@ -150,7 +154,7 @@ export const actionCompOffService = async (id: number, admin_id: number, status:
         if (status === 'approved') {
             await tx.profiles.update({
                 where: { id: request.employeeId },
-                data: { available_leaves: { increment: request.daysGranted } }
+                data: { comp_off_leaves: { increment: request.daysGranted } }
             });
         }
     });

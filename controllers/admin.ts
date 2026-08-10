@@ -185,6 +185,11 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       return;
     }
 
+    if (new Set(workedDates).size !== workedDates.length) {
+      res.status(400).json({ error: "Duplicate dates are not allowed in a single request." });
+      return;
+    }
+
     const adminId = req.user?.id;
     if (!adminId) {
       res.status(403).json({ error: "Unauthorized" });
