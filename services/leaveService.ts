@@ -8,7 +8,8 @@ import {
     sendStatusEmail,
     handlePendingOrApprovedWithdrawal,
     sendWithdrawalEmail,
-    extractPaidDays
+    extractPaidDays,
+    refundLeaveDays
 } from './leaveHelper';
 
 export const applyNewLeaveService = async (employee_id: number, leave_type: string, start_date: Date, end_date: Date, reason: string, is_half_day: boolean, isApproved: boolean = false) => {
@@ -53,16 +54,26 @@ export const applyNewLeaveService = async (employee_id: number, leave_type: stri
     const inProbation = isInProbation(joinedDate);
     
     // Calculate leave type incorporating current available balance
-    const finalLeaveType = await calculateLeaveType(inProbation, String(employee_id), total_days, leave_type, start_date, profile.available_leaves);
+    const totalPaidLeaves = (profile.available_leaves || 0) + (profile.comp_off_leaves || 0);
+    const finalLeaveType = await calculateLeaveType(inProbation, String(employee_id), total_days, leave_type, start_date, totalPaidLeaves);
 
     // Calculate how many paid days were actually consumed
     const paidDays = extractPaidDays(finalLeaveType, total_days);
     
-    // Immediately deduct consumed paid days from balance
-    if (paidDays > 0) {
+    // Immediately deduct consumed days from balance, preferring comp_offs first
+    if (total_days > 0) {
+        let compOffsToDeduct = Math.min(total_days, profile.comp_off_leaves || 0);
+        let regularToDeduct = total_days - compOffsToDeduct;
+        
+        console.log(`[DEBUG] Deduction logic: total_days=${total_days}, compOffBalance=${profile.comp_off_leaves}, regularBalance=${profile.available_leaves}`);
+        console.log(`[DEBUG] Deducting compOffs=${compOffsToDeduct}, regular=${regularToDeduct}`);
+
         await prisma.profiles.update({
             where: { id: employee_id },
-            data: { available_leaves: { decrement: paidDays } }
+            data: { 
+                comp_off_leaves: { decrement: compOffsToDeduct },
+                available_leaves: { decrement: regularToDeduct }
+            }
         });
     }
 
@@ -73,6 +84,7 @@ export const applyNewLeaveService = async (employee_id: number, leave_type: stri
             start_date, 
             end_date, 
             total_days, 
+            paid_days: paidDays,
             reason, 
             status: isApproved ? 'approved' : 'pending',
             ...(isApproved ? { approved_at: new Date(), admin_note: 'Applied by Admin on behalf of employee' } : {})
@@ -147,22 +159,19 @@ export const processLeaveActionService = async (id: number, status: string, admi
     // Refund logic for rejected or cancelled (withdrawn) leaves
     let refundDays = 0;
     if (status === 'rejected' && leave.status === 'pending') {
-        refundDays = extractPaidDays(leave.leave_type, leave.total_days || 0);
+        refundDays = leave.total_days || 0;
     } else if (status === 'cancelled') {
-        const originalPaidDays = extractPaidDays(leave.leave_type, leave.total_days || 0);
+        const originalTotal = leave.total_days || 0;
         if (updateData.status === 'approved') {
-            const newPaidDays = Math.min(originalPaidDays, updateData.total_days);
-            refundDays = originalPaidDays - newPaidDays;
+            const newTotal = updateData.total_days || 0;
+            refundDays = Math.max(0, originalTotal - newTotal);
         } else {
-            refundDays = originalPaidDays;
+            refundDays = originalTotal;
         }
     }
 
     if (refundDays > 0) {
-        await prisma.profiles.update({
-            where: { id: leave.employee_id },
-            data: { available_leaves: { increment: refundDays } }
-        });
+        await refundLeaveDays(leave.employee_id, refundDays);
     }
 
     sendStatusEmail(updatedLeave, status, adminNote).catch(e => console.error('Failed to send status email', e));
@@ -182,18 +191,15 @@ export const withdrawLeaveService = async (id: number, datesToWithdraw: any) => 
 
     let refundDays = 0;
     if (updateData.status === 'cancelled') {
-        refundDays = extractPaidDays(leave.leave_type, leave.total_days || 0);
+        refundDays = leave.total_days || 0;
     } else if (updateData.status === 'pending' && updateData.total_days !== undefined) {
-        const originalPaidDays = extractPaidDays(leave.leave_type, leave.total_days || 0);
-        const newPaidDays = Math.min(originalPaidDays, updateData.total_days);
-        refundDays = originalPaidDays - newPaidDays;
+        const originalTotal = leave.total_days || 0;
+        const newTotal = updateData.total_days || 0;
+        refundDays = Math.max(0, originalTotal - newTotal);
     }
 
     if (refundDays > 0) {
-        await prisma.profiles.update({
-            where: { id: leave.employee_id },
-            data: { available_leaves: { increment: refundDays } }
-        });
+        await refundLeaveDays(leave.employee_id, refundDays);
     }
     
     if (leave.status === 'approved') {

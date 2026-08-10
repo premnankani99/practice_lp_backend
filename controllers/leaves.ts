@@ -136,6 +136,21 @@ export const getLeavesByEmployee = async (req: AuthRequest, res: Response): Prom
 };
 
 /**
+ * Fetches all comp-off requests associated with a specific employee ID.
+ * @param {AuthRequest} req - Request object.
+ * @param {Response} res - Response object.
+ * @returns {Promise<void>}
+ */
+export const getCompOffsByEmployee = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const compOffs = await CompOffService.fetchEmployeeCompOffsService(Number(req.params.employeeId));
+        res.status(HTTP_STATUS.OK).json(compOffs);
+    } catch (_error) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
+    }
+};
+
+/**
  * Requests a new compensatory off for an employee.
  * @param {AuthRequest} req - Request object.
  * @param {Response} res - Response object.

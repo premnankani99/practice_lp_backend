@@ -14,20 +14,20 @@ import { syncEmployeeLeaveBalance } from '../services/leaveAccrualService';
  * @returns {Promise<void>} Resolves when the response is sent.
  */
 export const getPendingVerifications = async (_req: Request, res: Response): Promise<void> => {
-    try {
-        const pending = await prisma.profiles.findMany({
-            where: { 
-                verification_status: 'pending',
-                email_verified: true,
-                is_deleted: false 
-            },
-            orderBy: { created_at: 'desc' }
-        });
-        res.status(HTTP_STATUS.OK).json(pending);
-    } catch (_error) {
-        logger.error("[Backend] Error caught in admin.ts", _error);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
-    }
+  try {
+    const pending = await prisma.profiles.findMany({
+      where: {
+        verification_status: 'pending',
+        email_verified: true,
+        is_deleted: false
+      },
+      orderBy: { created_at: 'desc' }
+    });
+    res.status(HTTP_STATUS.OK).json(pending);
+  } catch (_error) {
+    logger.error("[Backend] Error caught in admin.ts", _error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
+  }
 };
 
 /**
@@ -37,45 +37,45 @@ export const getPendingVerifications = async (_req: Request, res: Response): Pro
  * @returns {Promise<void>} Resolves when the response is sent.
  */
 export const getVerifiedEmployees = async (_req: Request, res: Response): Promise<void> => {
-    try {
-        const verified = await prisma.profiles.findMany({
-            where: { 
-                verification_status: 'approved', 
-                role: 'employee',
-                is_deleted: false 
-            },
-            include: {
-                managers: {
-                    select: { id: true, full_name: true, email: true, role: true }
-                }
-            },
-            orderBy: { full_name: 'asc' }
-        });
-        res.status(HTTP_STATUS.OK).json(verified);
-    } catch (error) {
-        logger.error("[Backend] Error caught in admin.ts:", error);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
-    }
+  try {
+    const verified = await prisma.profiles.findMany({
+      where: {
+        verification_status: 'approved',
+        role: 'employee',
+        is_deleted: false
+      },
+      include: {
+        managers: {
+          select: { id: true, full_name: true, email: true, role: true }
+        }
+      },
+      orderBy: { full_name: 'asc' }
+    });
+    res.status(HTTP_STATUS.OK).json(verified);
+  } catch (error) {
+    logger.error("[Backend] Error caught in admin.ts:", error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
+  }
 };
 
 /**
  * Fetches all managers (admins and HR) to be assigned as parents.
  */
 export const getManagers = async (_req: Request, res: Response): Promise<void> => {
-    try {
-        const managers = await prisma.profiles.findMany({
-            where: { 
-                verification_status: 'approved', 
-                role: { in: ['admin', 'hr'] },
-                is_deleted: false 
-            },
-            orderBy: { full_name: 'asc' }
-        });
-        res.status(HTTP_STATUS.OK).json(managers);
-    } catch (error) {
-        logger.error("[Backend] Error caught in admin.ts:", error);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
-    }
+  try {
+    const managers = await prisma.profiles.findMany({
+      where: {
+        verification_status: 'approved',
+        role: { in: ['admin', 'hr'] },
+        is_deleted: false
+      },
+      orderBy: { full_name: 'asc' }
+    });
+    res.status(HTTP_STATUS.OK).json(managers);
+  } catch (error) {
+    logger.error("[Backend] Error caught in admin.ts:", error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
+  }
 };
 
 /**
@@ -85,23 +85,23 @@ export const getManagers = async (_req: Request, res: Response): Promise<void> =
  * @returns {Promise<void>} Resolves when the response is sent.
  */
 export const updateVerificationStatus = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const { status } = req.body; 
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
 
-        const updatedProfile = await prisma.profiles.update({
-            where: { id: Number(id) },
-            data: { 
-                verification_status: status,
-                is_active: status === 'approved' 
-            }
-        });
+    const updatedProfile = await prisma.profiles.update({
+      where: { id: Number(id) },
+      data: {
+        verification_status: status,
+        is_active: status === 'approved'
+      }
+    });
 
-        res.status(HTTP_STATUS.OK).json({ message: MESSAGES.VERIFICATION_UPDATED, profile: updatedProfile });
-    } catch (error) {
-        logger.error("[Backend] Error caught in admin.ts:", error);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.UPDATE_ERROR });
-    }
+    res.status(HTTP_STATUS.OK).json({ message: MESSAGES.VERIFICATION_UPDATED, profile: updatedProfile });
+  } catch (error) {
+    logger.error("[Backend] Error caught in admin.ts:", error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.UPDATE_ERROR });
+  }
 };
 
 /**
@@ -111,19 +111,19 @@ export const updateVerificationStatus = async (req: Request, res: Response): Pro
  * @returns {Promise<void>} Resolves when the response is sent.
  */
 export const deleteEmployee = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-        await prisma.profiles.update({
-            where: { id: Number(id) },
-            data: { is_deleted: true }
-        });
+    await prisma.profiles.update({
+      where: { id: Number(id) },
+      data: { is_deleted: true }
+    });
 
-        res.status(HTTP_STATUS.OK).json({ message: MESSAGES.EMPLOYEE_DELETED });
-    } catch (error) {
-        logger.error("[Backend] Error caught in admin.ts:", error);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.DELETE_ERROR });
-    }
+    res.status(HTTP_STATUS.OK).json({ message: MESSAGES.EMPLOYEE_DELETED });
+  } catch (error) {
+    logger.error("[Backend] Error caught in admin.ts:", error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.DELETE_ERROR });
+  }
 };
 
 /**
@@ -133,48 +133,48 @@ export const deleteEmployee = async (req: Request, res: Response): Promise<void>
  * @returns {Promise<void>} Resolves when the response is sent.
  */
 export const updateEmployee = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const { full_name, email, phone, designation, role, date_of_joining, toggle_manager } = req.body;
+  try {
+    const { id } = req.params;
+    const { full_name, email, phone, designation, role, date_of_joining, toggle_manager } = req.body;
 
-        const updateData: any = { full_name, email, phone, designation, role };
-        
-        // Only allow admins to assign/unassign themselves
-        if (toggle_manager !== undefined && (req as any).user?.role === 'admin') {
-            const adminId = (req as any).user.id;
-            updateData.managers = toggle_manager 
-                ? { connect: { id: adminId } } 
-                : { disconnect: { id: adminId } };
-        }
-        
-        if (date_of_joining) {
-            updateData.date_of_joining = new Date(date_of_joining);
-        }
+    const updateData: any = { full_name, email, phone, designation, role };
 
-        const updatedProfile = await prisma.profiles.update({
-            where: { id: Number(id) },
-            data: updateData
-        });
-
-        if (date_of_joining) {
-            await syncEmployeeLeaveBalance(Number(id));
-        }
-
-        // Fetch again to get latest synced balance if updated
-        const finalProfile = await prisma.profiles.findUnique({ where: { id: Number(id) }});
-
-        res.status(HTTP_STATUS.OK).json({ message: MESSAGES.EMPLOYEE_UPDATED, profile: finalProfile || updatedProfile });
-    } catch (error) {
-        logger.error("[Backend] Error caught in admin.ts:", error);
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.UPDATE_ERROR });
+    // Only allow admins to assign/unassign themselves
+    if (toggle_manager !== undefined && (req as any).user?.role === 'admin') {
+      const adminId = (req as any).user.id;
+      updateData.managers = toggle_manager
+        ? { connect: { id: adminId } }
+        : { disconnect: { id: adminId } };
     }
+
+    if (date_of_joining) {
+      updateData.date_of_joining = new Date(date_of_joining);
+    }
+
+    const updatedProfile = await prisma.profiles.update({
+      where: { id: Number(id) },
+      data: updateData
+    });
+
+    if (date_of_joining) {
+      await syncEmployeeLeaveBalance(Number(id));
+    }
+
+    // Fetch again to get latest synced balance if updated
+    const finalProfile = await prisma.profiles.findUnique({ where: { id: Number(id) } });
+
+    res.status(HTTP_STATUS.OK).json({ message: MESSAGES.EMPLOYEE_UPDATED, profile: finalProfile || updatedProfile });
+  } catch (error) {
+    logger.error("[Backend] Error caught in admin.ts:", error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.UPDATE_ERROR });
+  }
 };
 
 export const grantCompOff = async (req: any, res: Response): Promise<void> => {
   try {
     console.log("GRANT COMP OFF REQ.BODY:", req.body);
     const { employeeId, daysGranted, reason, workedDates } = req.body;
-    
+
     if (!employeeId || !daysGranted || !reason || !workedDates || !Array.isArray(workedDates)) {
       res.status(400).json({ error: "Missing required fields (employeeId, daysGranted, reason, workedDates as array)" });
       return;
@@ -182,7 +182,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
 
     const parsedEmployeeId = Number(employeeId);
     const parsedDaysGranted = Number(daysGranted);
-    
+
     if (isNaN(parsedEmployeeId) || isNaN(parsedDaysGranted)) {
       res.status(400).json({ error: "Invalid employeeId or daysGranted" });
       return;
@@ -190,6 +190,11 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
 
     if (parsedDaysGranted <= 0) {
       res.status(400).json({ error: "Days granted must be positive" });
+      return;
+    }
+
+    if (new Set(workedDates).size !== workedDates.length) {
+      res.status(400).json({ error: "Duplicate dates are not allowed in a single request." });
       return;
     }
 
@@ -205,7 +210,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
     }
 
     const employee = await prisma.profiles.findUnique({
-      where: { id: parsedEmployeeId }
+      where: { id: employeeId }
     });
 
     if (!employee || !employee.is_active || employee.is_deleted) {
@@ -213,11 +218,62 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       return;
     }
 
+    const existingCompOffs = await prisma.compOffGrant.findMany({
+      where: {
+        employeeId: Number(employeeId),
+        status: { not: 'rejected' }
+      }
+    });
+
+    let hasDuplicate = false;
+    let duplicateDate = '';
+    for (const grant of existingCompOffs) {
+      if (Array.isArray(grant.workedDates)) {
+        for (const date of workedDates) {
+          if (grant.workedDates.includes(date)) {
+            hasDuplicate = true;
+            duplicateDate = date;
+            break;
+          }
+        }
+      }
+      if (hasDuplicate) break;
+    }
+
+    if (hasDuplicate) {
+      res.status(400).json({ error: `A Comp-Off for ${duplicateDate} has already been requested or processed.` });
+      return;
+    }
+
+    const existingLeaves = await prisma.leave_requests.findMany({
+      where: {
+        employee_id: Number(employeeId),
+        status: { in: ['approved', 'pending'] }
+      }
+    });
+
+    for (const leave of existingLeaves) {
+      const leaveStart = new Date(leave.start_date);
+      const leaveEnd = new Date(leave.end_date);
+      leaveStart.setUTCHours(0, 0, 0, 0);
+      leaveEnd.setUTCHours(0, 0, 0, 0);
+
+      for (const dateStr of workedDates) {
+        const workedDate = new Date(dateStr);
+        workedDate.setUTCHours(0, 0, 0, 0);
+
+        if (workedDate >= leaveStart && workedDate <= leaveEnd) {
+          res.status(400).json({ error: `Employee already has a leave request covering ${dateStr}. Comp-off cannot be granted for this date.` });
+          return;
+        }
+      }
+    }
+
     const updatedEmployee = await prisma.$transaction(async (tx) => {
       await tx.compOffGrant.create({
         data: {
-          employeeId: parsedEmployeeId,
-          daysGranted: parsedDaysGranted,
+          employeeId,
+          daysGranted,
           reason,
           workedDates,
           grantedBy: parsedAdminId,
@@ -226,9 +282,9 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       });
 
       return await tx.profiles.update({
-        where: { id: parsedEmployeeId },
+        where: { id: employeeId },
         data: {
-          available_leaves: { increment: parsedDaysGranted }
+          available_leaves: { increment: daysGranted }
         }
       });
     });
@@ -237,7 +293,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       // autoUpgradeUnpaidLeaves removed
     }
 
-    const finalProfile = await prisma.profiles.findUnique({ where: { id: parsedEmployeeId } });
+    const finalProfile = await prisma.profiles.findUnique({ where: { id: employeeId } });
     if (!finalProfile) throw new Error("Profile not found after update");
 
     if (finalProfile.email) {
@@ -278,7 +334,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
 export const getCompOffHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { employeeId } = req.query;
-    
+
     const whereClause: any = { employee: { is_deleted: false } };
     if (employeeId) {
       whereClause.employeeId = Number(employeeId);

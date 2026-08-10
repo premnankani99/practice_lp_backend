@@ -4,6 +4,7 @@ node_modules
 
 /generated/prisma
 /dist
-logs/application-2026-08-04-11.log
-logs/application-2026-08-04-11.log
-logs/application-2026-08-04-11.log
+logs/
+*.log
+*.log.gz
+.ed*

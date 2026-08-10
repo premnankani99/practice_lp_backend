@@ -5,6 +5,64 @@ import { compOffAppliedAdminTemplate, compOffStatusUpdateTemplate } from '../uti
 
 export const requestCompOffService = async (employee_id: number, total_days: number, reason: string, workedDates: string[]) => {
     logger.info("[Backend] Executing requestCompOffService in compOffService.ts");
+    const employeeId = Number(employee_id);
+    if (!employeeId) {
+        throw new Error("Invalid Employee ID");
+    }
+
+    if (new Set(workedDates).size !== workedDates.length) {
+        throw new Error("Duplicate dates are not allowed in a single request.");
+    }
+
+    const existingCompOffs = await prisma.compOffGrant.findMany({
+        where: {
+            employeeId,
+            status: { not: 'rejected' }
+        }
+    });
+
+    let hasDuplicate = false;
+    let duplicateDate = '';
+    for (const grant of existingCompOffs) {
+        if (Array.isArray(grant.workedDates)) {
+            for (const date of workedDates) {
+                if (grant.workedDates.includes(date)) {
+                    hasDuplicate = true;
+                    duplicateDate = date;
+                    break;
+                }
+            }
+        }
+        if (hasDuplicate) break;
+    }
+
+    if (hasDuplicate) {
+        throw new Error(`A Comp-Off for ${duplicateDate} has already been requested or processed.`);
+    }
+
+    const existingLeaves = await prisma.leave_requests.findMany({
+        where: {
+            employee_id: employeeId,
+            status: { in: ['approved', 'pending'] }
+        }
+    });
+
+    for (const leave of existingLeaves) {
+        const leaveStart = new Date(leave.start_date);
+        const leaveEnd = new Date(leave.end_date);
+        leaveStart.setUTCHours(0, 0, 0, 0);
+        leaveEnd.setUTCHours(0, 0, 0, 0);
+        
+        for (const dateStr of workedDates) {
+            const workedDate = new Date(dateStr);
+            workedDate.setUTCHours(0, 0, 0, 0);
+            
+            if (workedDate >= leaveStart && workedDate <= leaveEnd) {
+                throw new Error(`Employee already has a leave request covering ${dateStr}. Comp-off cannot be requested for this date.`);
+            }
+        }
+    }
+
     const compOff = await prisma.compOffGrant.create({
         data: {
             employeeId: Number(employee_id),
@@ -96,7 +154,7 @@ export const actionCompOffService = async (id: number, admin_id: number, status:
         if (status === 'approved') {
             await tx.profiles.update({
                 where: { id: request.employeeId },
-                data: { available_leaves: { increment: request.daysGranted } }
+                data: { comp_off_leaves: { increment: request.daysGranted } }
             });
         }
     });
@@ -130,4 +188,11 @@ export const actionCompOffService = async (id: number, admin_id: number, status:
     } catch (e) {
         console.error("Failed to send email on comp-off action:", e);
     }
+};
+
+export const fetchEmployeeCompOffsService = async (employee_id: number) => {
+    return await prisma.compOffGrant.findMany({
+        where: { employeeId: employee_id },
+        orderBy: { grantedAt: 'desc' }
+    });
 };
