@@ -45,22 +45,21 @@ export const syncEmployeeLeaveBalance = async (employeeId: number) => {
         });
         const compOffsGranted = compOffs._sum.daysGranted || 0;
 
-        // Fetch taken paid leaves
+        // Fetch taken leaves
         const takenLeaves = await prisma.leave_requests.aggregate({
             where: {
                 employee_id: employeeId,
-                status: { in: ['approved', 'pending', 'withdrawal_requested'] },
-                leave_type: { in: ['Paid Leave', 'Half Day (Paid)'] }
+                status: { in: ['approved', 'pending', 'withdrawal_requested'] }
             },
             _sum: {
-                paid_days: true
+                total_days: true
             }
         });
-        const paidLeavesTaken = takenLeaves._sum.paid_days || 0;
+        const totalLeavesTaken = takenLeaves._sum.total_days || 0;
 
         // Assume comp-offs are used first
-        const compOffsUsed = Math.min(compOffsGranted, paidLeavesTaken);
-        const regularLeavesUsed = paidLeavesTaken - compOffsUsed;
+        const compOffsUsed = Math.min(compOffsGranted, totalLeavesTaken);
+        const regularLeavesUsed = totalLeavesTaken - compOffsUsed;
 
         const compOffBalance = compOffsGranted - compOffsUsed;
         const regularBalance = earnedLeaves - regularLeavesUsed;

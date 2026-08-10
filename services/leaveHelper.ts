@@ -227,3 +227,28 @@ export const sendWithdrawalEmail = async (employee: any, start: Date, end: Date,
         }).catch(err => console.error("Failed to send withdrawal email to admin/managers:", err));
     }
 };
+
+export const refundLeaveDays = async (employeeId: number, refundDays: number): Promise<void> => {
+    if (refundDays <= 0) return;
+    
+    // Calculate how many comp_offs the user has actually used
+    const compOffs = await prisma.compOffGrant.findMany({
+        where: { employeeId, status: 'approved' }
+    });
+    const totalEarnedCompOffs = compOffs.reduce((sum, g) => sum + g.daysGranted, 0);
+    const profile = await prisma.profiles.findUnique({ where: { id: employeeId } });
+    
+    const usedCompOffs = Math.max(0, totalEarnedCompOffs - (profile?.comp_off_leaves || 0));
+    
+    // Prioritize refunding comp-offs up to the amount they used
+    const refundToCompOff = Math.min(refundDays, usedCompOffs);
+    const refundToRegular = refundDays - refundToCompOff;
+
+    await prisma.profiles.update({
+        where: { id: employeeId },
+        data: { 
+            comp_off_leaves: { increment: refundToCompOff },
+            available_leaves: { increment: refundToRegular }
+        }
+    });
+};
