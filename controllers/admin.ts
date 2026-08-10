@@ -210,7 +210,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
     }
 
     const employee = await prisma.profiles.findUnique({
-      where: { id: employeeId }
+      where: { id: parsedEmployeeId }
     });
 
     if (!employee || !employee.is_active || employee.is_deleted) {
@@ -272,8 +272,8 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
     const updatedEmployee = await prisma.$transaction(async (tx) => {
       await tx.compOffGrant.create({
         data: {
-          employeeId,
-          daysGranted,
+          employeeId: parsedEmployeeId,
+          daysGranted: parsedDaysGranted,
           reason,
           workedDates,
           grantedBy: parsedAdminId,
@@ -282,9 +282,9 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       });
 
       return await tx.profiles.update({
-        where: { id: employeeId },
+        where: { id: parsedEmployeeId },
         data: {
-          available_leaves: { increment: daysGranted }
+          comp_off_leaves: { increment: parsedDaysGranted }
         }
       });
     });
@@ -293,7 +293,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       // autoUpgradeUnpaidLeaves removed
     }
 
-    const finalProfile = await prisma.profiles.findUnique({ where: { id: employeeId } });
+    const finalProfile = await prisma.profiles.findUnique({ where: { id: parsedEmployeeId } });
     if (!finalProfile) throw new Error("Profile not found after update");
 
     if (finalProfile.email) {
