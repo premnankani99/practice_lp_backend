@@ -192,7 +192,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
     }
 
     const employee = await prisma.profiles.findUnique({
-      where: { id: employeeId }
+      where: { id: Number(employeeId) }
     });
 
     if (!employee || !employee.is_active || employee.is_deleted) {
@@ -200,11 +200,38 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       return;
     }
 
+    const existingCompOffs = await prisma.compOffGrant.findMany({
+      where: {
+        employeeId: Number(employeeId),
+        status: { not: 'rejected' }
+      }
+    });
+
+    let hasDuplicate = false;
+    let duplicateDate = '';
+    for (const grant of existingCompOffs) {
+      if (Array.isArray(grant.workedDates)) {
+        for (const date of workedDates) {
+          if (grant.workedDates.includes(date)) {
+            hasDuplicate = true;
+            duplicateDate = date;
+            break;
+          }
+        }
+      }
+      if (hasDuplicate) break;
+    }
+
+    if (hasDuplicate) {
+      res.status(400).json({ error: `A Comp-Off for ${duplicateDate} has already been requested or processed.` });
+      return;
+    }
+
     const updatedEmployee = await prisma.$transaction(async (tx) => {
       await tx.compOffGrant.create({
         data: {
-          employeeId,
-          daysGranted,
+          employeeId: Number(employeeId),
+          daysGranted: Number(daysGranted),
           reason,
           workedDates,
           grantedBy: adminId,
@@ -213,9 +240,9 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       });
 
       return await tx.profiles.update({
-        where: { id: employeeId },
+        where: { id: Number(employeeId) },
         data: {
-          available_leaves: { increment: daysGranted }
+          comp_off_leaves: { increment: daysGranted }
         }
       });
     });
@@ -224,7 +251,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       // autoUpgradeUnpaidLeaves removed
     }
 
-    const finalProfile = await prisma.profiles.findUnique({ where: { id: employeeId } });
+    const finalProfile = await prisma.profiles.findUnique({ where: { id: Number(employeeId) } });
     if (!finalProfile) throw new Error("Profile not found after update");
 
     if (finalProfile.email) {

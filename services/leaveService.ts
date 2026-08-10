@@ -53,16 +53,23 @@ export const applyNewLeaveService = async (employee_id: number, leave_type: stri
     const inProbation = isInProbation(joinedDate);
     
     // Calculate leave type incorporating current available balance
-    const finalLeaveType = await calculateLeaveType(inProbation, String(employee_id), total_days, leave_type, start_date, profile.available_leaves);
+    const totalPaidLeaves = (profile.available_leaves || 0) + (profile.comp_off_leaves || 0);
+    const finalLeaveType = await calculateLeaveType(inProbation, String(employee_id), total_days, leave_type, start_date, totalPaidLeaves);
 
     // Calculate how many paid days were actually consumed
     const paidDays = extractPaidDays(finalLeaveType, total_days);
     
-    // Immediately deduct consumed paid days from balance
+    // Immediately deduct consumed paid days from balance, preferring comp_offs first
     if (paidDays > 0) {
+        let compOffsToDeduct = Math.min(paidDays, profile.comp_off_leaves || 0);
+        let regularToDeduct = paidDays - compOffsToDeduct;
+
         await prisma.profiles.update({
             where: { id: employee_id },
-            data: { available_leaves: { decrement: paidDays } }
+            data: { 
+                comp_off_leaves: { decrement: compOffsToDeduct },
+                available_leaves: { decrement: regularToDeduct }
+            }
         });
     }
 

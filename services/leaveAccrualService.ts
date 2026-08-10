@@ -58,19 +58,26 @@ export const syncEmployeeLeaveBalance = async (employeeId: number) => {
         });
         const paidLeavesTaken = takenLeaves._sum.paid_days || 0;
 
-        // Calculate new balance
-        const newBalance = earnedLeaves + compOffsGranted - paidLeavesTaken;
+        // Assume comp-offs are used first
+        const compOffsUsed = Math.min(compOffsGranted, paidLeavesTaken);
+        const regularLeavesUsed = paidLeavesTaken - compOffsUsed;
+
+        const compOffBalance = compOffsGranted - compOffsUsed;
+        const regularBalance = earnedLeaves - regularLeavesUsed;
+        
+        const totalBalance = compOffBalance + regularBalance;
 
         // Update DB
         await prisma.profiles.update({
             where: { id: employeeId },
             data: {
-                available_leaves: newBalance
+                available_leaves: regularBalance,
+                comp_off_leaves: compOffBalance
             }
         });
 
-        console.log(`[Sync] Resynced balance for ${employee.email}: Earned(${earnedLeaves}) + CompOffs(${compOffsGranted}) - Taken(${paidLeavesTaken}) = ${newBalance}`);
-        return newBalance;
+        console.log(`[Sync] Resynced balance for ${employee.email}: Earned(${earnedLeaves}) - Taken(${regularLeavesUsed}) = ${regularBalance} | CompOffs(${compOffsGranted}) - Taken(${compOffsUsed}) = ${compOffBalance}`);
+        return totalBalance;
     } catch (error) {
         console.error(`[Sync] Error syncing balance for employee ${employeeId}:`, error);
         throw error;
