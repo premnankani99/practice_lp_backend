@@ -4,18 +4,23 @@ import prisma from '../prismaClient';
 
 dotenv.config();
 
+const port = parseInt(process.env.SMTP_PORT || '465');
+const isSecure = port === 465 || process.env.SMTP_SECURE === 'true';
+
 const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.example.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: port,
+    secure: isSecure, // true for 465 (SSL/TLS), false for 587 (STARTTLS)
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
-    family: 4,
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 10000,
+    tls: {
+        rejectUnauthorized: false // avoids SSL certificate verification errors on shared hosting / cPanel
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
 } as any);
 
 export interface SendEmailOptions {
@@ -59,9 +64,15 @@ export const sendEmail = async (options: SendEmailOptions): Promise<boolean> => 
             }
         }
 
-        console.log('Sending email. TO:', options.to, 'CC:', ccArray);
+        let fromAddress = process.env.FROM_EMAIL;
+        if (!fromAddress || !fromAddress.includes('@')) {
+            const userEmail = process.env.SMTP_USER || 'info@landmaarkdeveloper.com';
+            fromAddress = `"Leave Portal" <${userEmail}>`;
+        }
+
+        console.log('Sending email. TO:', options.to, 'CC:', ccArray, 'FROM:', fromAddress);
         const mailOptions = {
-            from: process.env.FROM_EMAIL || '"Leave Portal" <noreply@yourdomain.com>',
+            from: fromAddress,
             to: options.to,
             cc: ccArray.length > 0 ? ccArray : undefined,
             subject: options.subject,

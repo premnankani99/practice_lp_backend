@@ -91,7 +91,7 @@ export const computeWithdrawalUpdateData = (leave: any, status: string): any => 
 export const sendLeaveEmails = async (profile: any, totalDays: number, start: Date, end: Date, reason: string): Promise<void> => {
     const durationText = totalDays === 1 ? '1 day' : `${totalDays} days`;
     if (profile.email) {
-        sendEmail({
+        await sendEmail({
             to: profile.email, subject: 'Leave Application Submitted', text: `Your leave for ${durationText} is submitted.`,
             html: leaveAppliedEmployeeTemplate(profile.full_name, durationText, start.toDateString(), end.toDateString(), reason)
         }).catch(err => console.error("Failed to send email to employee:", err));
@@ -110,7 +110,7 @@ export const sendLeaveEmails = async (profile: any, totalDays: number, start: Da
     if (targetEmails.length > 0) {
         const ccEmails = adminAndHrEmails.filter(email => !targetEmails.includes(email));
         
-        sendEmail({
+        await sendEmail({
             to: targetEmails,
             cc: ccEmails,
             subject: 'New Leave Request',
@@ -132,7 +132,7 @@ export const sendStatusEmail = async (leave: any, status: string, adminNote: str
             (email, index, self) => self.indexOf(email) === index && email !== leave.employee.email
         );
 
-        sendEmail({
+        await sendEmail({
             to: leave.employee.email,
             cc: ccEmails,
             subject: `Leave Request ${status.toUpperCase()}`,
@@ -210,7 +210,7 @@ export const sendWithdrawalEmail = async (employee: any, start: Date, end: Date,
     if (targetEmails.length > 0) {
         const ccEmails = adminAndHrEmails.filter(email => !targetEmails.includes(email));
 
-        sendEmail({
+        await sendEmail({
             to: targetEmails,
             cc: ccEmails,
             subject: 'Leave Request Withdrawn/Cancelled',

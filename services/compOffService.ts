@@ -37,7 +37,7 @@ export const requestCompOffService = async (employee_id: number, total_days: num
             if (targetEmails.length > 0) {
                 const ccEmails = adminAndHrEmails.filter(email => !targetEmails.includes(email));
                 
-                sendEmail({
+                await sendEmail({
                     to: targetEmails,
                     cc: ccEmails,
                     subject: 'New Comp-Off Request',
@@ -119,7 +119,7 @@ export const actionCompOffService = async (id: number, admin_id: number, status:
                 (email, index, self) => self.indexOf(email) === index && email !== request.employee.email
             );
             
-            sendEmail({
+            await sendEmail({
                 to: request.employee.email,
                 cc: ccEmails,
                 subject: `Comp-Off Request ${status.toUpperCase()}`,

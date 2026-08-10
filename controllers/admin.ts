@@ -180,7 +180,15 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       return;
     }
 
-    if (daysGranted <= 0) {
+    const parsedEmployeeId = Number(employeeId);
+    const parsedDaysGranted = Number(daysGranted);
+    
+    if (isNaN(parsedEmployeeId) || isNaN(parsedDaysGranted)) {
+      res.status(400).json({ error: "Invalid employeeId or daysGranted" });
+      return;
+    }
+
+    if (parsedDaysGranted <= 0) {
       res.status(400).json({ error: "Days granted must be positive" });
       return;
     }
@@ -190,9 +198,14 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       res.status(403).json({ error: "Unauthorized" });
       return;
     }
+    const parsedAdminId = Number(adminId);
+    if (isNaN(parsedAdminId)) {
+      res.status(400).json({ error: "Invalid admin user ID" });
+      return;
+    }
 
     const employee = await prisma.profiles.findUnique({
-      where: { id: employeeId }
+      where: { id: parsedEmployeeId }
     });
 
     if (!employee || !employee.is_active || employee.is_deleted) {
@@ -203,28 +216,28 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
     const updatedEmployee = await prisma.$transaction(async (tx) => {
       await tx.compOffGrant.create({
         data: {
-          employeeId,
-          daysGranted,
+          employeeId: parsedEmployeeId,
+          daysGranted: parsedDaysGranted,
           reason,
           workedDates,
-          grantedBy: adminId,
+          grantedBy: parsedAdminId,
           status: 'approved'
         }
       });
 
       return await tx.profiles.update({
-        where: { id: employeeId },
+        where: { id: parsedEmployeeId },
         data: {
-          available_leaves: { increment: daysGranted }
+          available_leaves: { increment: parsedDaysGranted }
         }
       });
     });
 
-    if (daysGranted > 0) {
+    if (parsedDaysGranted > 0) {
       // autoUpgradeUnpaidLeaves removed
     }
 
-    const finalProfile = await prisma.profiles.findUnique({ where: { id: employeeId } });
+    const finalProfile = await prisma.profiles.findUnique({ where: { id: parsedEmployeeId } });
     if (!finalProfile) throw new Error("Profile not found after update");
 
     if (finalProfile.email) {
@@ -232,7 +245,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px;">
           <h2 style="color: #7e57c2; margin-top: 0;">Comp-Off Granted</h2>
           <p style="font-size: 16px;">Hi <strong>${finalProfile.full_name}</strong>,</p>
-          <p style="font-size: 16px; line-height: 1.5;">An Admin has granted you <strong style="color: #4ade80;">${daysGranted} day(s)</strong> of Comp-Off.</p>
+          <p style="font-size: 16px; line-height: 1.5;">An Admin has granted you <strong style="color: #4ade80;">${parsedDaysGranted} day(s)</strong> of Comp-Off.</p>
           <div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; margin: 15px 0;">
             <p style="margin: 0 0 10px 0; font-size: 14px;"><strong>Reason:</strong> ${reason}</p>
             <p style="margin: 0 0 10px 0; font-size: 14px;"><strong>Worked Dates:</strong> ${workedDates.map((d: string) => new Date(d).toDateString()).join(', ')}</p>
@@ -246,7 +259,7 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       sendEmail({
         to: finalProfile.email,
         subject: 'Comp-Off Granted',
-        text: `You have been granted ${daysGranted} day(s) of Comp-Off for reason: ${reason}. Your new balance is ${finalProfile.available_leaves}.`,
+        text: `You have been granted ${parsedDaysGranted} day(s) of Comp-Off for reason: ${reason}. Your new balance is ${finalProfile.available_leaves}.`,
         html: emailHtml
       }).catch(err => console.error('Failed to send comp-off email:', err));
     }
