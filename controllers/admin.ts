@@ -227,6 +227,30 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       return;
     }
 
+    const existingLeaves = await prisma.leave_requests.findMany({
+        where: {
+            employee_id: Number(employeeId),
+            status: { in: ['approved', 'pending'] }
+        }
+    });
+
+    for (const leave of existingLeaves) {
+        const leaveStart = new Date(leave.start_date);
+        const leaveEnd = new Date(leave.end_date);
+        leaveStart.setUTCHours(0, 0, 0, 0);
+        leaveEnd.setUTCHours(0, 0, 0, 0);
+        
+        for (const dateStr of workedDates) {
+            const workedDate = new Date(dateStr);
+            workedDate.setUTCHours(0, 0, 0, 0);
+            
+            if (workedDate >= leaveStart && workedDate <= leaveEnd) {
+                res.status(400).json({ error: `Employee already has a leave request covering ${dateStr}. Comp-off cannot be granted for this date.` });
+                return;
+            }
+        }
+    }
+
     const updatedEmployee = await prisma.$transaction(async (tx) => {
       await tx.compOffGrant.create({
         data: {
