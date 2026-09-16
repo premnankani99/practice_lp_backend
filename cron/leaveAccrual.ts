@@ -23,21 +23,22 @@ export const runMonthlyAccrual = async () => {
         let updatedCount = 0;
 
         for (const employee of employees) {
-            if (!employee.date_of_joining) continue;
+            const baseDateStr = employee.probation_date || employee.date_of_joining;
+            if (!baseDateStr) continue;
 
-            const joinDate = new Date(employee.date_of_joining);
+            const baseDate = new Date(baseDateStr);
             
             // Calculate exact months difference
-            let monthsDiff = (today.getFullYear() - joinDate.getFullYear()) * 12;
-            monthsDiff -= joinDate.getMonth();
+            let monthsDiff = (today.getFullYear() - baseDate.getFullYear()) * 12;
+            monthsDiff -= baseDate.getMonth();
             monthsDiff += today.getMonth();
 
             // Adjust if the exact day hasn't occurred yet in the current month
-            if (today.getDate() < joinDate.getDate()) {
+            if (today.getDate() < baseDate.getDate()) {
                 monthsDiff--;
             }
 
-            // Employee is eligible if they have completed at least 6 months
+            // Employee is eligible if they have completed at least 6 months from probation date
             if (monthsDiff >= 6) {
                 await prisma.profiles.update({
                     where: { id: employee.id },

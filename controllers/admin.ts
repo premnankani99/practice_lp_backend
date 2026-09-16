@@ -135,7 +135,7 @@ export const deleteEmployee = async (req: Request, res: Response): Promise<void>
 export const updateEmployee = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { full_name, email, phone, designation, role, date_of_joining, toggle_manager } = req.body;
+    const { full_name, email, phone, designation, role, date_of_joining, probation_date, toggle_manager } = req.body;
 
     const updateData: any = { full_name, email, phone, designation, role };
 
@@ -149,6 +149,12 @@ export const updateEmployee = async (req: Request, res: Response): Promise<void>
 
     if (date_of_joining) {
       updateData.date_of_joining = new Date(date_of_joining);
+    }
+
+    if (probation_date) {
+      updateData.probation_date = new Date(probation_date);
+    } else if (probation_date === null) {
+      updateData.probation_date = null;
     }
 
     const updatedProfile = await prisma.profiles.update({

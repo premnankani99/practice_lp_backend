@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import prisma from '../prismaClient';
 import { AuthRequest } from '../middleware/auth';
 import { HTTP_STATUS } from '../constants/httpCodes';
 import { MESSAGES } from '../constants/strings';
@@ -218,5 +219,83 @@ export const getMyCompOffs = async (req: AuthRequest, res: Response): Promise<vo
         res.status(HTTP_STATUS.OK).json(compOffs);
     } catch (_error) {
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: MESSAGES.FETCH_ERROR });
+    }
+};
+
+/**
+ * Adjusts the leave treatment (paid/unpaid) for a request by admin.
+ * @param {AuthRequest} req - Request object.
+ * @param {Response} res - Response object.
+ * @returns {Promise<void>}
+ */
+export const adjustLeaveTreatmentByAdmin = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { leave_id, treatment } = req.body;
+        if (!leave_id) throw new Error("No leave ID provided");
+        
+        const leave = await prisma.leave_requests.findUnique({
+            where: { id: Number(leave_id) },
+            include: { employee: true }
+        });
+        if (!leave) {
+            res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Leave not found" });
+            return;
+        }
+
+        const employee = leave.employee;
+        const total_days = leave.total_days;
+        const originalPaidDays = leave.paid_days || 0;
+
+        let newPaidDays = originalPaidDays;
+        let newLeaveType = leave.leave_type;
+
+        const baseType = leave.leave_type.split(' (')[0];
+
+        if (treatment === 'paid') {
+            newPaidDays = total_days;
+            newLeaveType = `${baseType} (Paid)`;
+        } else {
+            newPaidDays = 0;
+            newLeaveType = `${baseType} (Unpaid - LOP)`;
+        }
+
+        const balanceDiff = newPaidDays - originalPaidDays;
+
+        if (balanceDiff !== 0) {
+            await prisma.$transaction(async (tx) => {
+                await tx.leave_requests.update({
+                    where: { id: leave.id },
+                    data: {
+                        paid_days: newPaidDays,
+                        leave_type: newLeaveType
+                    }
+                });
+
+                if (balanceDiff > 0) {
+                    let compOffsToDeduct = Math.min(balanceDiff, employee.comp_off_leaves || 0);
+                    let regularToDeduct = balanceDiff - compOffsToDeduct;
+                    await tx.profiles.update({
+                        where: { id: employee.id },
+                        data: {
+                            comp_off_leaves: { decrement: compOffsToDeduct },
+                            available_leaves: { decrement: regularToDeduct }
+                        }
+                    });
+                } else {
+                    const refundDays = -balanceDiff;
+                    await tx.profiles.update({
+                        where: { id: employee.id },
+                        data: {
+                            available_leaves: { increment: refundDays }
+                        }
+                    });
+                }
+            });
+        }
+
+        res.status(HTTP_STATUS.OK).json({ message: "Leave treatment adjusted successfully" });
+    } catch (error: any) {
+        console.error("Error adjusting leave treatment:", error);
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Internal server error" });
     }
 };

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { applyLeave, getMyLeaves, getMyCompOffs, getAllLeaves, updateLeaveStatus, withdrawLeave, getLeavesByEmployee, applyLeaveOnBehalf, adjustUnpaidLeave, requestCompOff, getPendingCompOffRequests, actionCompOffRequest, getCompOffsByEmployee } from '../controllers/leaves';
+import { applyLeave, getMyLeaves, getMyCompOffs, getAllLeaves, updateLeaveStatus, withdrawLeave, getLeavesByEmployee, applyLeaveOnBehalf, adjustUnpaidLeave, requestCompOff, getPendingCompOffRequests, actionCompOffRequest, getCompOffsByEmployee, adjustLeaveTreatmentByAdmin } from '../controllers/leaves';
 import { verifyToken } from '../middleware/auth';
 import { hasPermission } from '../middleware/rbac';
 
@@ -19,5 +19,6 @@ router.put('/withdraw/:id', verifyToken, withdrawLeave as any);
 router.post('/compoff/request', verifyToken, requestCompOff as any);
 router.get('/compoff/requests/pending', verifyToken, hasPermission('leaves:write') as any, getPendingCompOffRequests as any);
 router.post('/compoff/requests/:id/action', verifyToken, hasPermission('leaves:write') as any, actionCompOffRequest as any);
+router.post('/admin/adjust-leave-treatment', verifyToken, hasPermission('leaves:write') as any, adjustLeaveTreatmentByAdmin as any);
 
 export default router;

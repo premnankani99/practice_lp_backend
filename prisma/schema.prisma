@@ -29,6 +29,7 @@ model profiles {
   designation         String?
   employee_code       String?            @unique
   date_of_joining     DateTime?
+  probation_date      DateTime?
   total_leaves        Int                @default(0)
   available_leaves    Float              @default(0)
   comp_off_leaves     Float              @default(0)
