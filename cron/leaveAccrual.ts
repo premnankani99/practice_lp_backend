@@ -23,7 +23,7 @@ export const runMonthlyAccrual = async () => {
         let updatedCount = 0;
 
         for (const employee of employees) {
-            const baseDateStr = employee.probation_date || employee.date_of_joining;
+            const baseDateStr = (employee as any).probation_date || employee.date_of_joining;
             if (!baseDateStr) continue;
 
             const baseDate = new Date(baseDateStr);

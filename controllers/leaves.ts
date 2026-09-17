@@ -230,7 +230,7 @@ export const getMyCompOffs = async (req: AuthRequest, res: Response): Promise<vo
  */
 export const adjustLeaveTreatmentByAdmin = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const { leave_id, treatment } = req.body;
+        const { leave_id, treatment, paid_days_count } = req.body;
         if (!leave_id) throw new Error("No leave ID provided");
         
         const leave = await prisma.leave_requests.findUnique({
@@ -251,12 +251,18 @@ export const adjustLeaveTreatmentByAdmin = async (req: AuthRequest, res: Respons
 
         const baseType = leave.leave_type.split(' (')[0];
 
-        if (treatment === 'paid') {
+                if (treatment === "paid") {
             newPaidDays = total_days;
             newLeaveType = `${baseType} (Paid)`;
+        } else if (treatment === "partial") {
+            newPaidDays = paid_days_count !== undefined ? Number(paid_days_count) : 0;
+            if (newPaidDays > total_days) newPaidDays = total_days;
+            if (newPaidDays < 0) newPaidDays = 0;
+            newLeaveType = `${baseType} (Partially Paid)`;
         } else {
             newPaidDays = 0;
-            newLeaveType = `${baseType} (Unpaid - LOP)`;
+            newLeaveType = `${baseType}
+        } (Unpaid - LOP)`;
         }
 
         const balanceDiff = newPaidDays - originalPaidDays;

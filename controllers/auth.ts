@@ -255,6 +255,11 @@ export const forgotPassword = async (_req: Request, res: Response): Promise<void
             data: { reset_token: resetOtp, reset_token_expires_at: expiresAt }
         });
 
+        // Log OTP to console for easier local testing
+        console.log(`\n=========================================`);
+        console.log(`🔐 Password Reset OTP for ${email} is: ${resetOtp}`);
+        console.log(`=========================================\n`);
+
         await sendEmail({
             to: email,
             subject: 'Password Reset Request',
