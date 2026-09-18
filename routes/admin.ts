@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getPendingVerifications, getVerifiedEmployees, updateVerificationStatus, deleteEmployee, updateEmployee, grantCompOff, getCompOffHistory, getManagers } from '../controllers/admin';
+import { getPendingVerifications, getVerifiedEmployees, updateVerificationStatus, deleteEmployee, updateEmployee, grantCompOff, getCompOffHistory, getManagers, adjustLeaveBalance, getAdjustBalanceHistory, markLop, getLopHistory } from '../controllers/admin';
 import { verifyToken } from '../middleware/auth';
 import { hasPermission } from '../middleware/rbac';
 
@@ -16,5 +16,9 @@ router.put('/employee/:id', hasPermission('employees:write') as any, updateEmplo
 
 router.post('/comp-off/grant', hasPermission('employees:write') as any, grantCompOff as any);
 router.get('/comp-off/history', hasPermission('employees:read') as any, getCompOffHistory as any);
+router.post('/adjust-balance', hasPermission('employees:write') as any, adjustLeaveBalance as any);
+router.get('/adjust-balance/history', hasPermission('employees:read') as any, getAdjustBalanceHistory as any);
+router.post('/mark-lop', hasPermission('employees:write') as any, markLop as any);
+router.get('/lop/history', hasPermission('employees:read') as any, getLopHistory as any);
 
 export default router;

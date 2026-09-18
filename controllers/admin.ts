@@ -194,11 +194,6 @@ export const grantCompOff = async (req: any, res: Response): Promise<void> => {
       return;
     }
 
-    if (parsedDaysGranted <= 0) {
-      res.status(400).json({ error: "Days granted must be positive" });
-      return;
-    }
-
     if (new Set(workedDates).size !== workedDates.length) {
       res.status(400).json({ error: "Duplicate dates are not allowed in a single request." });
       return;
@@ -368,3 +363,70 @@ export const getCompOffHistory = async (req: Request, res: Response): Promise<vo
     res.status(500).json({ error: "Failed to fetch history" });
   }
 };
+
+
+export const adjustLeaveBalance = async (req: any, res: any) => {
+  try {
+    const { employeeId, amount, reason } = req.body;
+    const adminId = req.user?.id;
+    const parsedId = Number(employeeId), parsedAmt = Number(amount);
+
+    if (!employeeId || amount === undefined || isNaN(parsedId) || isNaN(parsedAmt) || !adminId)
+      return void res.status(400).json({ error: "Invalid inputs" });
+
+    if (!(await prisma.profiles.findUnique({ where: { id: parsedId } })))
+      return void res.status(404).json({ error: "Employee not found" });
+
+    const updated = await prisma.profiles.update({
+      where: { id: parsedId },
+      data: { available_leaves: { increment: parsedAmt } }
+    });
+
+    await prisma.audit_logs.create({
+      data: { actor_id: adminId, action: `Adjusted Standard Balance by ${parsedAmt}. Reason: ${reason || "None"}`, target_table: "profiles", target_id: parsedId }
+    });
+
+    logger.info(`[Backend] Admin ${adminId} adjusted leaves for emp ${parsedId} by ${parsedAmt}`);
+    res.json({ message: "Balance adjusted successfully", newBalance: updated.available_leaves });
+  } catch (err) { res.status(500).json({ error: "Failed to adjust balance" }); }
+};
+
+export const markLop = async (req: any, res: any) => {
+  try {
+    const { employeeId, lopDays, reason } = req.body;
+    const adminId = req.user?.id;
+    const parsedId = Number(employeeId), parsedAmt = Number(lopDays);
+
+    if (!employeeId || !lopDays || isNaN(parsedId) || isNaN(parsedAmt) || parsedAmt <= 0 || !adminId)
+      return void res.status(400).json({ error: "Invalid inputs" });
+
+    if (!(await prisma.profiles.findUnique({ where: { id: parsedId } })))
+      return void res.status(404).json({ error: "Employee not found" });
+
+    const updated = await prisma.profiles.update({
+      where: { id: parsedId },
+      data: { available_leaves: { increment: parsedAmt } }
+    });
+
+    await prisma.audit_logs.create({
+      data: { actor_id: adminId, action: `Marked LOP for ${parsedAmt} days. Reason: ${reason || "None"}`, target_table: "profiles", target_id: parsedId }
+    });
+
+    logger.info(`[Backend] Admin ${adminId} marked LOP for ${parsedAmt} days for emp ${parsedId}`);
+    res.json({ message: "LOP marked successfully", newBalance: (updated.comp_off_leaves || 0) - (updated.available_leaves || 0) });
+  } catch (err) { res.status(500).json({ error: "Failed to mark LOP" }); }
+};
+
+const fetchHistory = async (req: any, res: any, prefix: string) => {
+  try {
+    if (!req.query.employeeId) return void res.status(400).json({ error: "Missing employeeId" });
+    const logs = await prisma.audit_logs.findMany({
+      where: { target_table: "profiles", target_id: Number(req.query.employeeId), action: { startsWith: prefix } },
+      orderBy: { created_at: "desc" }
+    });
+    res.json(logs);
+  } catch (err) { res.status(500).json({ error: "Failed to fetch history" }); }
+};
+
+export const getAdjustBalanceHistory = (req: any, res: any) => fetchHistory(req, res, "Adjusted Standard Balance");
+export const getLopHistory = (req: any, res: any) => fetchHistory(req, res, "Marked LOP");

@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const url = process.env.DATABASE_URL || '';
-const connectionString = url.startsWith('mysql://') ? url.replace('mysql://', 'mariadb://') : url;
+const connectionString = (url.startsWith('mysql://') ? url.replace('mysql://', 'mariadb://') : url) + (url.includes('?') ? '&' : '?') + 'allowPublicKeyRetrieval=true';
 
 const adapter = new PrismaMariaDb(connectionString);
 const prisma = new PrismaClient({ adapter });
