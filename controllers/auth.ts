@@ -67,11 +67,6 @@ const createUserWithOtp = async (data: any): Promise<any> => {
         }
     });
     
-    // Log OTP to console for easier local testing
-    console.log(`\n=========================================`);
-    console.log(`🔐 OTP for ${data.email} is: ${otpCode}`);
-    console.log(`=========================================\n`);
-    
     return { newUser, otpCode };
 };
 
@@ -176,11 +171,6 @@ const handleUnverifiedLogin = async (user: any): Promise<void> => {
         data: { otp_code: otpCode, otp_expires_at: otpExpiresAt }
     });
 
-    // Log OTP to console for easier local testing
-    console.log(`\n=========================================`);
-    console.log(`🔐 OTP for ${user.email} is: ${otpCode}`);
-    console.log(`=========================================\n`);
-
     sendEmail({
         to: user.email,
         subject: 'Verify Your Email - Leave Portal',
@@ -254,11 +244,6 @@ export const forgotPassword = async (_req: Request, res: Response): Promise<void
             where: { email },
             data: { reset_token: resetOtp, reset_token_expires_at: expiresAt }
         });
-
-        // Log OTP to console for easier local testing
-        console.log(`\n=========================================`);
-        console.log(`🔐 Password Reset OTP for ${email} is: ${resetOtp}`);
-        console.log(`=========================================\n`);
 
         await sendEmail({
             to: email,

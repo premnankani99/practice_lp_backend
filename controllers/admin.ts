@@ -364,167 +364,69 @@ export const getCompOffHistory = async (req: Request, res: Response): Promise<vo
   }
 };
 
-export const adjustLeaveBalance = async (req: Request, res: Response): Promise<void> => {
+
+export const adjustLeaveBalance = async (req: any, res: any) => {
   try {
     const { employeeId, amount, reason } = req.body;
-    
-    if (!employeeId || amount === undefined) {
-      res.status(400).json({ error: "Missing required fields (employeeId, amount)" });
-      return;
-    }
+    const adminId = req.user?.id;
+    const parsedId = Number(employeeId), parsedAmt = Number(amount);
 
-    const parsedEmployeeId = Number(employeeId);
-    const parsedAmount = Number(amount);
+    if (!employeeId || amount === undefined || isNaN(parsedId) || isNaN(parsedAmt) || !adminId)
+      return void res.status(400).json({ error: "Invalid inputs" });
 
-    if (isNaN(parsedEmployeeId) || isNaN(parsedAmount)) {
-      res.status(400).json({ error: "Invalid employeeId or amount" });
-      return;
-    }
+    if (!(await prisma.profiles.findUnique({ where: { id: parsedId } })))
+      return void res.status(404).json({ error: "Employee not found" });
 
-    const adminId = (req as any).user?.id;
-    if (!adminId) {
-      res.status(403).json({ error: "Unauthorized" });
-      return;
-    }
-
-    const employee = await prisma.profiles.findUnique({
-      where: { id: parsedEmployeeId }
+    const updated = await prisma.profiles.update({
+      where: { id: parsedId },
+      data: { available_leaves: { increment: parsedAmt } }
     });
 
-    if (!employee) {
-      res.status(404).json({ error: "Employee not found" });
-      return;
-    }
-
-    const updatedProfile = await prisma.profiles.update({
-      where: { id: parsedEmployeeId },
-      data: {
-        available_leaves: { increment: parsedAmount }
-      }
-    });
-
-    // Save to audit_logs so we can show history in frontend
     await prisma.audit_logs.create({
-      data: {
-        actor_id: adminId,
-        action: `Adjusted Standard Balance by ${parsedAmount}. Reason: ${reason || 'None'}`,
-        target_table: 'profiles',
-        target_id: parsedEmployeeId
-      }
+      data: { actor_id: adminId, action: `Adjusted Standard Balance by ${parsedAmt}. Reason: ${reason || "None"}`, target_table: "profiles", target_id: parsedId }
     });
 
-    logger.info(`[Backend] Admin ${adminId} adjusted leaves for employee ${parsedEmployeeId} by ${parsedAmount}. Reason: ${reason || 'None'}`);
-
-    res.json({
-      message: "Leave balance adjusted successfully",
-      newBalance: updatedProfile.available_leaves
-    });
-  } catch (error) {
-    logger.error("[Backend] Error caught in admin.ts (adjustLeaveBalance):", error);
-    res.status(500).json({ error: "Failed to adjust leave balance" });
-  }
+    logger.info(`[Backend] Admin ${adminId} adjusted leaves for emp ${parsedId} by ${parsedAmt}`);
+    res.json({ message: "Balance adjusted successfully", newBalance: updated.available_leaves });
+  } catch (err) { res.status(500).json({ error: "Failed to adjust balance" }); }
 };
 
-export const getAdjustBalanceHistory = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { employeeId } = req.query;
-    if (!employeeId) {
-      res.status(400).json({ error: "Missing employeeId" });
-      return;
-    }
-
-    const logs = await prisma.audit_logs.findMany({
-      where: {
-        target_table: 'profiles',
-        target_id: Number(employeeId),
-        action: { startsWith: 'Adjusted Standard Balance' }
-      },
-      orderBy: { created_at: 'desc' }
-    });
-
-    res.json(logs);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch adjustment history" });
-  }
-};
-
-export const markLop = async (req: any, res: Response): Promise<void> => {
+export const markLop = async (req: any, res: any) => {
   try {
     const { employeeId, lopDays, reason } = req.body;
     const adminId = req.user?.id;
+    const parsedId = Number(employeeId), parsedAmt = Number(lopDays);
 
-    if (!employeeId || !lopDays || !adminId) {
-      res.status(400).json({ error: "Missing required fields" });
-      return;
-    }
+    if (!employeeId || !lopDays || isNaN(parsedId) || isNaN(parsedAmt) || parsedAmt <= 0 || !adminId)
+      return void res.status(400).json({ error: "Invalid inputs" });
 
-    const parsedEmployeeId = Number(employeeId);
-    const parsedLopDays = Number(lopDays);
+    if (!(await prisma.profiles.findUnique({ where: { id: parsedId } })))
+      return void res.status(404).json({ error: "Employee not found" });
 
-    if (isNaN(parsedEmployeeId) || isNaN(parsedLopDays) || parsedLopDays <= 0) {
-      res.status(400).json({ error: "Invalid employeeId or lopDays" });
-      return;
-    }
-
-    const employee = await prisma.profiles.findUnique({
-      where: { id: parsedEmployeeId }
-    });
-
-    if (!employee) {
-      res.status(404).json({ error: "Employee not found" });
-      return;
-    }
-
-    // Since the mental model is: Total Balance = comp_off_leaves - available_leaves
-    // A negative balance means (comp_off_leaves - available_leaves) < 0.
-    // By reducing available_leaves by lopDays, we bring the total balance back towards 0.
-    const updatedProfile = await prisma.profiles.update({
-      where: { id: parsedEmployeeId },
-      data: {
-        available_leaves: { increment: parsedLopDays }
-      }
+    const updated = await prisma.profiles.update({
+      where: { id: parsedId },
+      data: { available_leaves: { increment: parsedAmt } }
     });
 
     await prisma.audit_logs.create({
-      data: {
-        actor_id: adminId,
-        action: `Marked LOP for ${parsedLopDays} days. Reason: ${reason || 'None'}`,
-        target_table: 'profiles',
-        target_id: parsedEmployeeId
-      }
+      data: { actor_id: adminId, action: `Marked LOP for ${parsedAmt} days. Reason: ${reason || "None"}`, target_table: "profiles", target_id: parsedId }
     });
 
-    logger.info(`[Backend] Admin ${adminId} marked LOP for ${parsedLopDays} days for employee ${parsedEmployeeId}. Reason: ${reason || 'None'}`);
-
-    res.json({
-      message: "LOP marked successfully",
-      newBalance: updatedProfile.comp_off_leaves - updatedProfile.available_leaves
-    });
-  } catch (error) {
-    logger.error("[Backend] Error caught in admin.ts (markLop):", error);
-    res.status(500).json({ error: "Failed to mark LOP" });
-  }
+    logger.info(`[Backend] Admin ${adminId} marked LOP for ${parsedAmt} days for emp ${parsedId}`);
+    res.json({ message: "LOP marked successfully", newBalance: (updated.comp_off_leaves || 0) - (updated.available_leaves || 0) });
+  } catch (err) { res.status(500).json({ error: "Failed to mark LOP" }); }
 };
 
-export const getLopHistory = async (req: Request, res: Response): Promise<void> => {
+const fetchHistory = async (req: any, res: any, prefix: string) => {
   try {
-    const { employeeId } = req.query;
-    if (!employeeId) {
-      res.status(400).json({ error: "Missing employeeId" });
-      return;
-    }
-
+    if (!req.query.employeeId) return void res.status(400).json({ error: "Missing employeeId" });
     const logs = await prisma.audit_logs.findMany({
-      where: {
-        target_table: 'profiles',
-        target_id: Number(employeeId),
-        action: { startsWith: 'Marked LOP' }
-      },
-      orderBy: { created_at: 'desc' }
+      where: { target_table: "profiles", target_id: Number(req.query.employeeId), action: { startsWith: prefix } },
+      orderBy: { created_at: "desc" }
     });
-
     res.json(logs);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch LOP history" });
-  }
+  } catch (err) { res.status(500).json({ error: "Failed to fetch history" }); }
 };
+
+export const getAdjustBalanceHistory = (req: any, res: any) => fetchHistory(req, res, "Adjusted Standard Balance");
+export const getLopHistory = (req: any, res: any) => fetchHistory(req, res, "Marked LOP");
